@@ -28,9 +28,8 @@
             overflow: hidden;
             background: #000;
         }
-        video, canvas {
-            display: block;
-        }
+        video, canvas { display: block; }
+        
         #startBtn {
             margin-top: 20px;
             padding: 16px 32px;
@@ -52,11 +51,10 @@
             background: rgba(0, 255, 136, 0.08);
             padding: 12px 25px;
             border-radius: 8px;
-            min-width: 320px;
+            min-width: 340px;
         }
         .status-dot {
-            height: 13px;
-            width: 13px;
+            height: 13px; width: 13px;
             background-color: #ff0000;
             border-radius: 50%;
             display: inline-block;
@@ -75,11 +73,12 @@
         <canvas id="irisOverlay"></canvas>
     </div>
 
-    <button id="startBtn">🚀 เปิดกล้องหน้าและเริ่มตรวจจับ</button>
+    <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับทุกอย่าง</button>
 
     <div id="ui-panel">
         <span id="dot" class="status-dot"></span>
-        <span id="statusText">พร้อมใช้งาน - กล้องหน้า</span>
+        <span id="statusText">พร้อมใช้งาน - กล้องหลัง</span>
+        <div id="count" style="margin-top: 8px; font-size: 15px; color: #00ffcc;"></div>
     </div>
 
     <script>
@@ -87,6 +86,7 @@
         const canvas = document.getElementById('irisOverlay');
         const statusText = document.getElementById('statusText');
         const dot = document.getElementById('dot');
+        const countDisplay = document.getElementById('count');
         const startBtn = document.getElementById('startBtn');
         const context = canvas.getContext('2d');
 
@@ -110,7 +110,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: "user",   // ← กล้องหน้า
+                        facingMode: "environment",   // กล้องหลัง
                         width: 640,
                         height: 480
                     },
@@ -127,7 +127,7 @@
                     };
                 });
             } catch (err) {
-                statusText.textContent = "ไม่สามารถเปิดกล้องได้";
+                statusText.textContent = "ไม่สามารถเปิดกล้องหลังได้";
                 statusText.style.color = "#ff4444";
                 return false;
             }
@@ -137,7 +137,9 @@
             if (!objectDetector || !isRunning) return;
 
             try {
-                const predictions = await objectDetector.detect(video);
+                // ตรวจจับทุกอย่าง โดยลดเกณฑ์ความมั่นใจเหลือ 25%
+                const predictions = await objectDetector.detect(video, 0.25);
+                
                 context.clearRect(0, 0, canvas.width, canvas.height);
 
                 predictions.forEach(prediction => {
@@ -145,33 +147,37 @@
                     const score = Math.round(prediction.score * 100);
                     const label = prediction.class.toUpperCase();
 
-                    // === กรอบสี่เหลี่ยมสวยๆ ===
+                    // กรอบสวย
                     context.shadowColor = "#00ff88";
                     context.shadowBlur = 15;
                     context.strokeStyle = "#00ff88";
-                    context.lineWidth = 5;
+                    context.lineWidth = 4;
                     context.lineJoin = "round";
                     context.strokeRect(x, y, width, height);
 
-                    // ป้ายชื่อแบบ gradient
+                    // ป้ายชื่อ
                     const text = `${label} ${score}%`;
-                    context.font = "bold 17px Arial";
+                    context.font = "bold 16px Arial";
                     const textWidth = context.measureText(text).width;
 
-                    // พื้นหลังป้าย
                     const gradient = context.createLinearGradient(x, y-35, x, y-5);
                     gradient.addColorStop(0, "rgba(0, 255, 136, 0.95)");
-                    gradient.addColorStop(1, "rgba(0, 200, 100, 0.95)");
+                    gradient.addColorStop(1, "rgba(0, 180, 90, 0.95)");
 
                     context.fillStyle = gradient;
-                    context.fillRect(x - 2, y - 38, textWidth + 20, 33);
+                    context.fillRect(x - 2, y - 36, textWidth + 18, 31);
 
-                    // ข้อความ
                     context.shadowBlur = 0;
-                    context.fillStyle = "#000000";
-                    context.fillText(text, x + 9, y - 13);
+                    context.fillStyle = "#000";
+                    context.fillText(text, x + 8, y - 12);
                 });
-            } catch (e) {}
+
+                // แสดงจำนวนวัตถุที่ตรวจพบ
+                countDisplay.textContent = `ตรวจพบ ${predictions.length} วัตถุ`;
+
+            } catch (e) {
+                console.error(e);
+            }
 
             requestAnimationFrame(runDetection);
         }
@@ -185,7 +191,7 @@
             const cameraStarted = await startCamera();
             if (cameraStarted) {
                 dot.classList.add('active');
-                statusText.textContent = "ระบบทำงาน - กล้องหน้า";
+                statusText.textContent = "กำลังตรวจจับทุกอย่าง...";
                 statusText.style.color = "#00ff88";
                 
                 isRunning = true;
@@ -194,7 +200,7 @@
         });
 
         window.onload = () => {
-            statusText.textContent = "กดปุ่มเพื่อเปิดกล้องหน้า";
+            statusText.textContent = "กดปุ่มเพื่อเปิดกล้องหลังและตรวจจับทุกอย่าง";
         };
     </script>
 </body>
