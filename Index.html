@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iris AI Camera & Detection 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            background-color: #0d0d0d;
+            color: #00ff88;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+        }
+        .vision-container {
+            position: relative;
+            border: 3px solid #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+        video, canvas {
+            display: block;
+        }
+        #startBtn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #00ff88;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #startBtn:hover {
+            background: #00cc6a;
+            transform: scale(1.05);
+        }
+        #ui-panel {
+            margin-top: 15px;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 12px 25px;
+            border-radius: 8px;
+            min-width: 300px;
+        }
+        .status-dot {
+            height: 12px;
+            width: 12px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .active { background-color: #00ff88; box-shadow: 0 0 12px #00ff88; }
+    </style>
+</head>
+<body>
+
+    <h2>🌸 IRIS INTELLIGENCE VISION 2026</h2>
+    
+    <div class="vision-container">
+        <video id="irisWebcam" autoplay playsinline muted width="640" height="480"></video>
+        <canvas id="irisOverlay"></canvas>
+    </div>
+
+    <button id="startBtn">🚀 เปิดกล้องและเริ่มตรวจจับ</button>
+
+    <div id="ui-panel">
+        <span id="dot" class="status-dot"></span>
+        <span id="statusText">พร้อมใช้งาน</span>
+    </div>
+
+    <script>
+        const video = document.getElementById('irisWebcam');
+        const canvas = document.getElementById('irisOverlay');
+        const statusText = document.getElementById('statusText');
+        const dot = document.getElementById('dot');
+        const startBtn = document.getElementById('startBtn');
+        const context = canvas.getContext('2d');
+
+        let objectDetector = null;
+        let isRunning = false;
+
+        async function loadModel() {
+            statusText.textContent = "กำลังโหลดโมเดล AI... (อาจใช้เวลา 5-15 วินาที)";
+            try {
+                objectDetector = await cocoSsd.load();
+                statusText.textContent = "โหลดโมเดลสำเร็จ ✓";
+                return true;
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "โหลดโมเดลล้มเหลว";
+                statusText.style.color = "#ff4444";
+                return false;
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: 640,
+                        height: 480
+                    },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve(true);
+                    };
+                });
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "ไม่สามารถเปิดกล้องได้ (อาจถูกบล็อก)";
+                statusText.style.color = "#ff4444";
+                return false;
+            }
+        }
+
+        async function runDetection() {
+            if (!objectDetector || !isRunning) return;
+
+            try {
+                const predictions = await objectDetector.detect(video);
+                
+                // ล้างภาพเก่า
+                context.clearRect(0, 0, canvas.width, canvas.height);
+
+                predictions.forEach(prediction => {
+                    const [x, y, width, height] = prediction.bbox;
+                    const score = Math.round(prediction.score * 100);
+
+                    // กรอบ
+                    context.strokeStyle = "#00ff88";
+                    context.lineWidth = 4;
+                    context.strokeRect(x, y, width, height);
+
+                    // ป้ายชื่อ
+                    const label = `${prediction.class.toUpperCase()} ${score}%`;
+                    context.font = "bold 16px Arial";
+                    const textWidth = context.measureText(label).width;
+
+                    context.fillStyle = "rgba(0, 255, 136, 0.85)";
+                    context.fillRect(x, y - 28, textWidth + 16, 28);
+
+                    context.fillStyle = "#000";
+                    context.fillText(label, x + 8, y - 8);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+
+            requestAnimationFrame(runDetection);
+        }
+
+        // ปุ่มเริ่มทำงาน
+        startBtn.addEventListener('click', async () => {
+            startBtn.style.display = 'none';
+            
+            const modelLoaded = await loadModel();
+            if (!modelLoaded) return;
+
+            const cameraStarted = await startCamera();
+            if (cameraStarted) {
+                dot.classList.add('active');
+                statusText.textContent = "ระบบทำงานปกติ - กำลังตรวจจับวัตถุ";
+                statusText.style.color = "#00ff88";
+                
+                isRunning = true;
+                runDetection();
+            }
+        });
+
+        // แจ้งเตือนเมื่อโหลดหน้า
+        window.onload = () => {
+            statusText.textContent = "กดปุ่มด้านบนเพื่อเริ่มใช้งาน Iris AI";
+        };
+    </script>
+</body>
+  </html>
