@@ -52,9 +52,7 @@
             border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
         }
-        #startBtn:hover { transform: scale(1.08); }
     </style>
 </head>
 <body>
@@ -66,7 +64,7 @@
         <canvas id="irisOverlay"></canvas>
     </div>
 
-    <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับทุกอย่าง</button>
+    <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับ 20 วัตถุ</button>
 
     <div id="ui-panel" style="margin-top: 15px; background: rgba(0,255,136,0.08); padding: 12px 25px; border-radius: 8px; min-width: 320px;">
         <span id="dot" class="status-dot"></span>
@@ -75,6 +73,90 @@
     </div>
 
     <script>
+        // แปลงชื่ออังกฤษเป็นไทย
+        const thaiLabels = {
+            "person": "คน",
+            "bicycle": "จักรยาน",
+            "car": "รถยนต์",
+            "motorcycle": "มอเตอร์ไซค์",
+            "airplane": "เครื่องบิน",
+            "bus": "รถบัส",
+            "train": "รถไฟ",
+            "truck": "รถบรรทุก",
+            "boat": "เรือ",
+            "traffic light": "ไฟจราจร",
+            "fire hydrant": "หัวดับเพลิง",
+            "stop sign": "ป้ายหยุด",
+            "parking meter": "มิเตอร์จอดรถ",
+            "bench": "ม้านั่ง",
+            "bird": "นก",
+            "cat": "แมว",
+            "dog": "สุนัข",
+            "horse": "ม้า",
+            "sheep": "แกะ",
+            "cow": "วัว",
+            "elephant": "ช้าง",
+            "bear": "หมี",
+            "zebra": "ม้าลาย",
+            "giraffe": "ยีราฟ",
+            "backpack": "เป้สะพายหลัง",
+            "umbrella": "ร่ม",
+            "handbag": "กระเป๋าถือ",
+            "tie": "เนคไท",
+            "suitcase": "กระเป๋าเดินทาง",
+            "frisbee": "จานบิน",
+            "skis": "สกี",
+            "snowboard": "สโนว์บอร์ด",
+            "sports ball": "ลูกบอล",
+            "kite": "ว่าว",
+            "baseball bat": "ไม้เบสบอล",
+            "baseball glove": "ถุงมือเบสบอล",
+            "skateboard": "สเก็ตบอร์ด",
+            "surfboard": "กระดานโต้คลื่น",
+            "tennis racket": "ไม้เทนนิส",
+            "bottle": "ขวด",
+            "wine glass": "แก้วไวน์",
+            "cup": "แก้ว",
+            "fork": "ส้อม",
+            "knife": "มีด",
+            "spoon": "ช้อน",
+            "bowl": "ชาม",
+            "banana": "กล้วย",
+            "apple": "แอปเปิ้ล",
+            "sandwich": "แซนด์วิช",
+            "orange": "ส้ม",
+            "broccoli": "บรอกโคลี",
+            "carrot": "แคร์รอต",
+            "hot dog": "ฮอตด็อก",
+            "pizza": "พิซซ่า",
+            "donut": "โดนัท",
+            "cake": "เค้ก",
+            "chair": "เก้าอี้",
+            "couch": "โซฟา",
+            "potted plant": "ต้นไม้กระถาง",
+            "bed": "เตียง",
+            "dining table": "โต๊ะอาหาร",
+            "toilet": "โถส้วม",
+            "tv": "ทีวี",
+            "laptop": "แล็ปท็อป",
+            "mouse": "เมาส์",
+            "remote": "รีโมท",
+            "keyboard": "คีย์บอร์ด",
+            "cell phone": "โทรศัพท์",
+            "microwave": "ไมโครเวฟ",
+            "oven": "เตาอบ",
+            "toaster": "เครื่องปิ้งขนมปัง",
+            "sink": "อ่างล้างจาน",
+            "refrigerator": "ตู้เย็น",
+            "book": "หนังสือ",
+            "clock": "นาฬิกา",
+            "vase": "แจกัน",
+            "scissors": "กรรไกร",
+            "teddy bear": "ตุ๊กตาหมี",
+            "hair drier": "ไดร์เป่าผม",
+            "toothbrush": "แปรงสีฟัน"
+        };
+
         const video = document.getElementById('irisWebcam');
         const canvas = document.getElementById('irisOverlay');
         const statusText = document.getElementById('statusText');
@@ -85,7 +167,6 @@
 
         let objectDetector = null;
         let isRunning = false;
-        let videoWidth, videoHeight;
 
         async function loadModel() {
             statusText.textContent = "กำลังโหลดโมเดล AI...";
@@ -99,8 +180,8 @@
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: "environment",
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
+                        width: { ideal: 480 },   // ลดความละเอียดเพื่อให้เร็วขึ้น
+                        height: { ideal: 360 }
                     }
                 });
                 
@@ -108,13 +189,8 @@
                 
                 return new Promise(resolve => {
                     video.onloadedmetadata = () => {
-                        videoWidth = video.videoWidth;
-                        videoHeight = video.videoHeight;
-                        
-                        // ตั้งขนาด canvas ให้ตรงกับวิดีโอจริง
-                        canvas.width = videoWidth;
-                        canvas.height = videoHeight;
-                        
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
                         resolve(true);
                     };
                 });
@@ -129,37 +205,40 @@
             if (!objectDetector || !isRunning) return;
 
             try {
-                const predictions = await objectDetector.detect(video, 0.25);
-                
+                // ตรวจจับสูงสุด 20 วัตถุ
+                let predictions = await objectDetector.detect(video, 0.25);
+                predictions = predictions.slice(0, 20);   // จำกัดที่ 20 ตัว
+
                 context.clearRect(0, 0, canvas.width, canvas.height);
 
                 predictions.forEach(prediction => {
                     const [x, y, width, height] = prediction.bbox;
                     const score = Math.round(prediction.score * 100);
-                    const label = prediction.class.toUpperCase();
+                    const engLabel = prediction.class;
+                    const thaiLabel = thaiLabels[engLabel] || engLabel.toUpperCase();
 
-                    // กรอบสวย
+                    // กรอบ
                     context.shadowColor = "#00ff88";
-                    context.shadowBlur = 20;
+                    context.shadowBlur = 15;
                     context.strokeStyle = "#00ff88";
-                    context.lineWidth = 5;
+                    context.lineWidth = 4;
                     context.strokeRect(x, y, width, height);
 
-                    // ป้าย
-                    const text = `${label} ${score}%`;
+                    // ป้ายภาษาไทย
+                    const text = `${thaiLabel} ${score}%`;
                     context.font = "bold 17px Arial";
                     const textWidth = context.measureText(text).width;
 
-                    const gradient = context.createLinearGradient(x, y-40, x, y-5);
+                    const gradient = context.createLinearGradient(x, y-38, x, y-5);
                     gradient.addColorStop(0, "rgba(0, 255, 136, 0.95)");
                     gradient.addColorStop(1, "rgba(0, 180, 90, 0.95)");
 
                     context.fillStyle = gradient;
-                    context.fillRect(x - 3, y - 40, textWidth + 20, 35);
+                    context.fillRect(x - 3, y - 38, textWidth + 20, 34);
 
                     context.shadowBlur = 0;
                     context.fillStyle = "#000";
-                    context.fillText(text, x + 8, y - 15);
+                    context.fillText(text, x + 8, y - 13);
                 });
 
                 countDisplay.textContent = `ตรวจพบ ${predictions.length} วัตถุ`;
@@ -174,7 +253,7 @@
             const ok = await startCamera();
             if (ok) {
                 dot.classList.add('active');
-                statusText.textContent = "ระบบตรวจจับทุกอย่าง - กำลังทำงาน";
+                statusText.textContent = "ตรวจจับ 20 วัตถุ - กำลังทำงาน";
                 isRunning = true;
                 runDetection();
             }
