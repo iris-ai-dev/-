@@ -64,7 +64,7 @@
         <canvas id="irisOverlay"></canvas>
     </div>
 
-    <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับ 20 วัตถุ</button>
+    <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับสูงสุด</button>
 
     <div id="ui-panel" style="margin-top: 15px; background: rgba(0,255,136,0.08); padding: 12px 25px; border-radius: 8px; min-width: 320px;">
         <span id="dot" class="status-dot"></span>
@@ -73,7 +73,7 @@
     </div>
 
     <script>
-        // แปลงชื่ออังกฤษเป็นไทย
+        // คำแปลภาษาไทยแบบละเอียดและครบถ้วน
         const thaiLabels = {
             "person": "คน",
             "bicycle": "จักรยาน",
@@ -86,7 +86,7 @@
             "boat": "เรือ",
             "traffic light": "ไฟจราจร",
             "fire hydrant": "หัวดับเพลิง",
-            "stop sign": "ป้ายหยุด",
+            "stop sign": "ป้ายหยุดรถ",
             "parking meter": "มิเตอร์จอดรถ",
             "bench": "ม้านั่ง",
             "bird": "นก",
@@ -114,7 +114,7 @@
             "skateboard": "สเก็ตบอร์ด",
             "surfboard": "กระดานโต้คลื่น",
             "tennis racket": "ไม้เทนนิส",
-            "bottle": "ขวด",
+            "bottle": "ขวดน้ำ",
             "wine glass": "แก้วไวน์",
             "cup": "แก้ว",
             "fork": "ส้อม",
@@ -142,7 +142,7 @@
             "mouse": "เมาส์",
             "remote": "รีโมท",
             "keyboard": "คีย์บอร์ด",
-            "cell phone": "โทรศัพท์",
+            "cell phone": "โทรศัพท์มือถือ",
             "microwave": "ไมโครเวฟ",
             "oven": "เตาอบ",
             "toaster": "เครื่องปิ้งขนมปัง",
@@ -180,7 +180,7 @@
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
                         facingMode: "environment",
-                        width: { ideal: 480 },   // ลดความละเอียดเพื่อให้เร็วขึ้น
+                        width: { ideal: 480 },
                         height: { ideal: 360 }
                     }
                 });
@@ -205,10 +205,10 @@
             if (!objectDetector || !isRunning) return;
 
             try {
-                // ตรวจจับสูงสุด 20 วัตถุ
-                let predictions = await objectDetector.detect(video, 0.25);
-                predictions = predictions.slice(0, 20);   // จำกัดที่ 20 ตัว
-
+                // ตรวจจับเยอะขึ้น + ซ้ำได้
+                let predictions = await objectDetector.detect(video, 0.20);
+                
+                // ไม่ตัดเหลือ 20 อีกต่อไป
                 context.clearRect(0, 0, canvas.width, canvas.height);
 
                 predictions.forEach(prediction => {
@@ -217,24 +217,24 @@
                     const engLabel = prediction.class;
                     const thaiLabel = thaiLabels[engLabel] || engLabel.toUpperCase();
 
-                    // กรอบ
+                    // กรอบสี่เหลี่ยม
                     context.shadowColor = "#00ff88";
-                    context.shadowBlur = 15;
+                    context.shadowBlur = 18;
                     context.strokeStyle = "#00ff88";
                     context.lineWidth = 4;
                     context.strokeRect(x, y, width, height);
 
                     // ป้ายภาษาไทย
                     const text = `${thaiLabel} ${score}%`;
-                    context.font = "bold 17px Arial";
+                    context.font = "bold 16px Arial";
                     const textWidth = context.measureText(text).width;
 
-                    const gradient = context.createLinearGradient(x, y-38, x, y-5);
+                    const gradient = context.createLinearGradient(x, y-36, x, y-5);
                     gradient.addColorStop(0, "rgba(0, 255, 136, 0.95)");
                     gradient.addColorStop(1, "rgba(0, 180, 90, 0.95)");
 
                     context.fillStyle = gradient;
-                    context.fillRect(x - 3, y - 38, textWidth + 20, 34);
+                    context.fillRect(x - 3, y - 37, textWidth + 20, 32);
 
                     context.shadowBlur = 0;
                     context.fillStyle = "#000";
@@ -253,7 +253,7 @@
             const ok = await startCamera();
             if (ok) {
                 dot.classList.add('active');
-                statusText.textContent = "ตรวจจับ 20 วัตถุ - กำลังทำงาน";
+                statusText.textContent = "ตรวจจับสูงสุด - ภาษาไทย";
                 isRunning = true;
                 runDetection();
             }
