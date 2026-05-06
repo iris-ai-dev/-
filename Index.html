@@ -22,14 +22,26 @@
         }
         .vision-container {
             position: relative;
+            width: 100%;
+            max-width: 640px;
             border: 3px solid #00ff88;
             box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
             border-radius: 16px;
             overflow: hidden;
             background: #000;
         }
-        video, canvas { display: block; }
-        
+        video, canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
         #startBtn {
             margin-top: 20px;
             padding: 16px 32px;
@@ -42,26 +54,7 @@
             font-weight: bold;
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
         }
-        #startBtn:hover {
-            transform: scale(1.08);
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.8);
-        }
-        #ui-panel {
-            margin-top: 15px;
-            background: rgba(0, 255, 136, 0.08);
-            padding: 12px 25px;
-            border-radius: 8px;
-            min-width: 340px;
-        }
-        .status-dot {
-            height: 13px; width: 13px;
-            background-color: #ff0000;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-            box-shadow: 0 0 8px #ff0000;
-        }
-        .active { background-color: #00ff88; box-shadow: 0 0 12px #00ff88; }
+        #startBtn:hover { transform: scale(1.08); }
     </style>
 </head>
 <body>
@@ -69,15 +62,15 @@
     <h2>🌸 IRIS INTELLIGENCE VISION 2026</h2>
     
     <div class="vision-container">
-        <video id="irisWebcam" autoplay playsinline muted width="640" height="480"></video>
+        <video id="irisWebcam" autoplay playsinline muted></video>
         <canvas id="irisOverlay"></canvas>
     </div>
 
     <button id="startBtn">📷 เปิดกล้องหลัง - ตรวจจับทุกอย่าง</button>
 
-    <div id="ui-panel">
+    <div id="ui-panel" style="margin-top: 15px; background: rgba(0,255,136,0.08); padding: 12px 25px; border-radius: 8px; min-width: 320px;">
         <span id="dot" class="status-dot"></span>
-        <span id="statusText">พร้อมใช้งาน - กล้องหลัง</span>
+        <span id="statusText">พร้อมใช้งาน</span>
         <div id="count" style="margin-top: 8px; font-size: 15px; color: #00ffcc;"></div>
     </div>
 
@@ -92,42 +85,41 @@
 
         let objectDetector = null;
         let isRunning = false;
+        let videoWidth, videoHeight;
 
         async function loadModel() {
             statusText.textContent = "กำลังโหลดโมเดล AI...";
-            try {
-                objectDetector = await cocoSsd.load();
-                statusText.textContent = "โหลดโมเดลสำเร็จ ✓";
-                return true;
-            } catch (err) {
-                statusText.textContent = "โหลดโมเดลล้มเหลว";
-                statusText.style.color = "#ff4444";
-                return false;
-            }
+            objectDetector = await cocoSsd.load();
+            statusText.textContent = "โหลดโมเดลสำเร็จ ✓";
+            return true;
         }
 
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",   // กล้องหลัง
-                        width: 640,
-                        height: 480
-                    },
-                    audio: false
+                    video: { 
+                        facingMode: "environment",
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
                 });
                 
                 video.srcObject = stream;
                 
-                return new Promise((resolve) => {
+                return new Promise(resolve => {
                     video.onloadedmetadata = () => {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
+                        videoWidth = video.videoWidth;
+                        videoHeight = video.videoHeight;
+                        
+                        // ตั้งขนาด canvas ให้ตรงกับวิดีโอจริง
+                        canvas.width = videoWidth;
+                        canvas.height = videoHeight;
+                        
                         resolve(true);
                     };
                 });
             } catch (err) {
-                statusText.textContent = "ไม่สามารถเปิดกล้องหลังได้";
+                statusText.textContent = "เปิดกล้องไม่ได้";
                 statusText.style.color = "#ff4444";
                 return false;
             }
@@ -137,7 +129,6 @@
             if (!objectDetector || !isRunning) return;
 
             try {
-                // ตรวจจับทุกอย่าง โดยลดเกณฑ์ความมั่นใจเหลือ 25%
                 const predictions = await objectDetector.detect(video, 0.25);
                 
                 context.clearRect(0, 0, canvas.width, canvas.height);
@@ -149,59 +140,45 @@
 
                     // กรอบสวย
                     context.shadowColor = "#00ff88";
-                    context.shadowBlur = 15;
+                    context.shadowBlur = 20;
                     context.strokeStyle = "#00ff88";
-                    context.lineWidth = 4;
-                    context.lineJoin = "round";
+                    context.lineWidth = 5;
                     context.strokeRect(x, y, width, height);
 
-                    // ป้ายชื่อ
+                    // ป้าย
                     const text = `${label} ${score}%`;
-                    context.font = "bold 16px Arial";
+                    context.font = "bold 17px Arial";
                     const textWidth = context.measureText(text).width;
 
-                    const gradient = context.createLinearGradient(x, y-35, x, y-5);
+                    const gradient = context.createLinearGradient(x, y-40, x, y-5);
                     gradient.addColorStop(0, "rgba(0, 255, 136, 0.95)");
                     gradient.addColorStop(1, "rgba(0, 180, 90, 0.95)");
 
                     context.fillStyle = gradient;
-                    context.fillRect(x - 2, y - 36, textWidth + 18, 31);
+                    context.fillRect(x - 3, y - 40, textWidth + 20, 35);
 
                     context.shadowBlur = 0;
                     context.fillStyle = "#000";
-                    context.fillText(text, x + 8, y - 12);
+                    context.fillText(text, x + 8, y - 15);
                 });
 
-                // แสดงจำนวนวัตถุที่ตรวจพบ
                 countDisplay.textContent = `ตรวจพบ ${predictions.length} วัตถุ`;
-
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
 
             requestAnimationFrame(runDetection);
         }
 
         startBtn.addEventListener('click', async () => {
             startBtn.style.display = 'none';
-            
-            const modelLoaded = await loadModel();
-            if (!modelLoaded) return;
-
-            const cameraStarted = await startCamera();
-            if (cameraStarted) {
+            await loadModel();
+            const ok = await startCamera();
+            if (ok) {
                 dot.classList.add('active');
-                statusText.textContent = "กำลังตรวจจับทุกอย่าง...";
-                statusText.style.color = "#00ff88";
-                
+                statusText.textContent = "ระบบตรวจจับทุกอย่าง - กำลังทำงาน";
                 isRunning = true;
                 runDetection();
             }
         });
-
-        window.onload = () => {
-            statusText.textContent = "กดปุ่มเพื่อเปิดกล้องหลังและตรวจจับทุกอย่าง";
-        };
     </script>
 </body>
 </html>
