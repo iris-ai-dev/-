@@ -10,7 +10,7 @@
     <style>
         body {
             margin: 0;
-            background-color: #0d0d0d;
+            background-color: #0a0a0a;
             color: #00ff88;
             font-family: 'Courier New', Courier, monospace;
             display: flex;
@@ -23,8 +23,8 @@
         .vision-container {
             position: relative;
             border: 3px solid #00ff88;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
-            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
+            border-radius: 16px;
             overflow: hidden;
             background: #000;
         }
@@ -33,34 +33,35 @@
         }
         #startBtn {
             margin-top: 20px;
-            padding: 15px 30px;
+            padding: 16px 32px;
             font-size: 18px;
-            background: #00ff88;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
             color: #000;
             border: none;
-            border-radius: 8px;
+            border-radius: 50px;
             cursor: pointer;
             font-weight: bold;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
         }
         #startBtn:hover {
-            background: #00cc6a;
-            transform: scale(1.05);
+            transform: scale(1.08);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.8);
         }
         #ui-panel {
             margin-top: 15px;
-            background: rgba(0, 255, 136, 0.1);
+            background: rgba(0, 255, 136, 0.08);
             padding: 12px 25px;
             border-radius: 8px;
-            min-width: 300px;
+            min-width: 320px;
         }
         .status-dot {
-            height: 12px;
-            width: 12px;
+            height: 13px;
+            width: 13px;
             background-color: #ff0000;
             border-radius: 50%;
             display: inline-block;
             margin-right: 8px;
-            vertical-align: middle;
+            box-shadow: 0 0 8px #ff0000;
         }
         .active { background-color: #00ff88; box-shadow: 0 0 12px #00ff88; }
     </style>
@@ -74,11 +75,11 @@
         <canvas id="irisOverlay"></canvas>
     </div>
 
-    <button id="startBtn">🚀 เปิดกล้องและเริ่มตรวจจับ</button>
+    <button id="startBtn">🚀 เปิดกล้องหน้าและเริ่มตรวจจับ</button>
 
     <div id="ui-panel">
         <span id="dot" class="status-dot"></span>
-        <span id="statusText">พร้อมใช้งาน</span>
+        <span id="statusText">พร้อมใช้งาน - กล้องหน้า</span>
     </div>
 
     <script>
@@ -93,13 +94,12 @@
         let isRunning = false;
 
         async function loadModel() {
-            statusText.textContent = "กำลังโหลดโมเดล AI... (อาจใช้เวลา 5-15 วินาที)";
+            statusText.textContent = "กำลังโหลดโมเดล AI...";
             try {
                 objectDetector = await cocoSsd.load();
                 statusText.textContent = "โหลดโมเดลสำเร็จ ✓";
                 return true;
             } catch (err) {
-                console.error(err);
                 statusText.textContent = "โหลดโมเดลล้มเหลว";
                 statusText.style.color = "#ff4444";
                 return false;
@@ -110,7 +110,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: "user",
+                        facingMode: "user",   // ← กล้องหน้า
                         width: 640,
                         height: 480
                     },
@@ -127,8 +127,7 @@
                     };
                 });
             } catch (err) {
-                console.error(err);
-                statusText.textContent = "ไม่สามารถเปิดกล้องได้ (อาจถูกบล็อก)";
+                statusText.textContent = "ไม่สามารถเปิดกล้องได้";
                 statusText.style.color = "#ff4444";
                 return false;
             }
@@ -139,38 +138,44 @@
 
             try {
                 const predictions = await objectDetector.detect(video);
-                
-                // ล้างภาพเก่า
                 context.clearRect(0, 0, canvas.width, canvas.height);
 
                 predictions.forEach(prediction => {
                     const [x, y, width, height] = prediction.bbox;
                     const score = Math.round(prediction.score * 100);
+                    const label = prediction.class.toUpperCase();
 
-                    // กรอบ
+                    // === กรอบสี่เหลี่ยมสวยๆ ===
+                    context.shadowColor = "#00ff88";
+                    context.shadowBlur = 15;
                     context.strokeStyle = "#00ff88";
-                    context.lineWidth = 4;
+                    context.lineWidth = 5;
+                    context.lineJoin = "round";
                     context.strokeRect(x, y, width, height);
 
-                    // ป้ายชื่อ
-                    const label = `${prediction.class.toUpperCase()} ${score}%`;
-                    context.font = "bold 16px Arial";
-                    const textWidth = context.measureText(label).width;
+                    // ป้ายชื่อแบบ gradient
+                    const text = `${label} ${score}%`;
+                    context.font = "bold 17px Arial";
+                    const textWidth = context.measureText(text).width;
 
-                    context.fillStyle = "rgba(0, 255, 136, 0.85)";
-                    context.fillRect(x, y - 28, textWidth + 16, 28);
+                    // พื้นหลังป้าย
+                    const gradient = context.createLinearGradient(x, y-35, x, y-5);
+                    gradient.addColorStop(0, "rgba(0, 255, 136, 0.95)");
+                    gradient.addColorStop(1, "rgba(0, 200, 100, 0.95)");
 
-                    context.fillStyle = "#000";
-                    context.fillText(label, x + 8, y - 8);
+                    context.fillStyle = gradient;
+                    context.fillRect(x - 2, y - 38, textWidth + 20, 33);
+
+                    // ข้อความ
+                    context.shadowBlur = 0;
+                    context.fillStyle = "#000000";
+                    context.fillText(text, x + 9, y - 13);
                 });
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) {}
 
             requestAnimationFrame(runDetection);
         }
 
-        // ปุ่มเริ่มทำงาน
         startBtn.addEventListener('click', async () => {
             startBtn.style.display = 'none';
             
@@ -180,7 +185,7 @@
             const cameraStarted = await startCamera();
             if (cameraStarted) {
                 dot.classList.add('active');
-                statusText.textContent = "ระบบทำงานปกติ - กำลังตรวจจับวัตถุ";
+                statusText.textContent = "ระบบทำงาน - กล้องหน้า";
                 statusText.style.color = "#00ff88";
                 
                 isRunning = true;
@@ -188,10 +193,9 @@
             }
         });
 
-        // แจ้งเตือนเมื่อโหลดหน้า
         window.onload = () => {
-            statusText.textContent = "กดปุ่มด้านบนเพื่อเริ่มใช้งาน Iris AI";
+            statusText.textContent = "กดปุ่มเพื่อเปิดกล้องหน้า";
         };
     </script>
 </body>
-  </html>
+</html>
